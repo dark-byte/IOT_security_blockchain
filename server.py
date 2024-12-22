@@ -10,14 +10,11 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Allow both localhost and 127.0.0.1:3000
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-
 # Configure CORS for the app
-cors = CORS(app, resources={r"/*": {"origins": allowed_origins}})
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configure SocketIO with allowed origins
-socketio = SocketIO(app, cors_allowed_origins=allowed_origins)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Set up logging with an in-memory log storage
 class InMemoryLogHandler(logging.Handler):
@@ -59,7 +56,7 @@ logger.addHandler(stream_handler)
 logger.addHandler(memory_handler)
 
 # Global variables
-registered_nodes = {}   # node_id: public_key_hex
+registered_nodes = {}   # node_id: {public_key: public_key_hex, public_url: public_url}
 proposal = None         # Stores the block proposal
 prepare_messages = {}   # node_id: prepare_message
 consensus_messages = {} # node_id: consensus_message
@@ -128,10 +125,14 @@ def propose_block():
 def register_node():
     node_id = str(request.json['node_id'])
     public_key_hex = request.json['public_key']
-    registered_nodes[node_id] = public_key_hex
+    public_url = request.json['public_url']  # Get the public URL from the request
+    registered_nodes[node_id] = {
+        'public_key': public_key_hex,
+        'public_url': public_url
+    }
     logger.info(f"Node {node_id}: Registered with server.", 
                 extra={'log_type': 'central', 'node_id': node_id})
-    return jsonify({'node_id': node_id, 'public_key': public_key_hex}), 201
+    return jsonify({'node_id': node_id, 'public_key': public_key_hex, 'public_url': public_url}), 201
 
 @app.route('/public_keys', methods=['GET'])
 def public_keys():
@@ -143,7 +144,7 @@ def commit_message():
     node_id = str(consensus_message['node_id'])
     status = consensus_message['status']
     signature = consensus_message['signature']
-    public_key_hex = registered_nodes.get(node_id)
+    public_key_hex = registered_nodes.get(node_id, {}).get('public_key')
 
     # Verify the consensus message signature
     if not verify_signature(status, signature, public_key_hex):

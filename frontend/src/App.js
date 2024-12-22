@@ -11,7 +11,7 @@ import './App.css'
 function App() {
   return (
     <div className="container">
-      <h1>Iot Dashboard</h1>
+      <h1>IoT Dashboard</h1>
       <div className="section">
         <Blockchain/>
       </div>

@@ -14,9 +14,11 @@ class IoTNode:
     def __init__(self, node_id, central_server_url):
         self.node_id = node_id
         self.central_server_url = central_server_url
+        self.public_url = self.get_ngrok_url()
         self.key_file = f"node_{self.node_id}_key.pem"
         self.load_or_generate_keys()
         self.public_keys = {}  # Store public keys of other nodes
+        self.public_urls = {}  # Store public URLs of other nodes
         self.app = Flask(__name__)
         CORS(self.app, origins="*")
         self.setup_routes()
@@ -25,6 +27,12 @@ class IoTNode:
         self.consensus_reached = False
         self.is_primary = False
         self.current_primary_id = None
+
+    def get_ngrok_url(self):
+        response = requests.get('http://localhost:4040/api/tunnels')
+        data = response.json()
+        public_url = data['tunnels'][0]['public_url']
+        return public_url
 
     def log_message(self, message, log_type='node'):
         log_data = {
@@ -130,7 +138,8 @@ class IoTNode:
         public_key_hex = self.public_key.to_string().hex()
         response = requests.post(f"{self.central_server_url}/register_node", json={
             "node_id": self.node_id,
-            "public_key": public_key_hex
+            "public_key": public_key_hex,
+            "public_url": self.public_url  # Include the public URL in the registration
         })
         if response.status_code == 201:
             print(f"Node {self.node_id}: Registered with server.")
@@ -141,10 +150,13 @@ class IoTNode:
     def get_public_keys(self):
         response = requests.get(f"{self.central_server_url}/public_keys")
         if response.status_code == 200:
-            new_public_keys = response.json()
-            if new_public_keys != self.public_keys:
+            data = response.json()
+            new_public_keys = {k: v['public_key'] for k, v in data.items()}
+            new_public_urls = {k: v['public_url'] for k, v in data.items()}
+            if new_public_keys != self.public_keys or new_public_urls != self.public_urls:
                 self.public_keys = new_public_keys
-                print(f"Node {self.node_id}: Updated public keys.")
+                self.public_urls = new_public_urls
+                print(f"Node {self.node_id}: Updated public keys and URLs.")
         else:
             print(f"Node {self.node_id}: Failed to get public keys.")
 
@@ -189,10 +201,10 @@ class IoTNode:
         # Send proposal to central server
         response = requests.post(f"{self.central_server_url}/propose_block", json=proposal)
         # Send proposal to all replicas
-        for node_id in self.public_keys.keys():
+        for node_id, public_url in self.public_urls.items():
             if node_id != str(self.node_id):
                 try:
-                    response = requests.post(f"http://127.0.0.1:{5000 + int(node_id)}/receive_proposal", json=proposal)
+                    response = requests.post(f"{public_url}/receive_proposal", json=proposal)
                     if response.status_code == 200:
                         print(f"Node {self.node_id}: Sent proposal to Node {node_id}.")
                     else:
@@ -207,9 +219,9 @@ class IoTNode:
             "status": "prepared",
             "signature": self.sign_message("prepared")
         }
-        primary_port = 5000 + int(self.current_primary_id)
+        primary_url = self.public_urls[self.current_primary_id]
         try:
-            response = requests.post(f"http://127.0.0.1:{primary_port}/receive_prepare", json=prepare_message)
+            response = requests.post(f"{primary_url}/receive_prepare", json=prepare_message)
             if response.status_code == 200:
                 print(f"Node {self.node_id}: Sent prepare message to primary.")
                 self.send_consensus()
