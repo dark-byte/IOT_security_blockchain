@@ -14,7 +14,8 @@ app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configure SocketIO with allowed origins
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*") 
+                    # cors_allowed_origins="https://0ac7-2405-201-d02d-48be-20e6-6cdf-2a9d-3440.ngrok-free.app")
 
 # Set up logging with an in-memory log storage
 class InMemoryLogHandler(logging.Handler):

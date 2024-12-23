@@ -6,14 +6,14 @@ const BlockProposal = () => {
     const [nodes, setNodes] = useState([]);
     const [selectedNode, setSelectedNode] = useState('');
     const [blockData, setBlockData] = useState('');
-    const centralServerPort = 5000; // Port of the central server
+    const centralServerUrl = 'http://127.0.0.1:5000'; // URL of the central server
 
     // Fetch registered nodes from the central server
     useEffect(() => {
         const fetchNodes = async () => {
             try {
-                const response = await axios.get(`http://127.0.0.1:${centralServerPort}/public_keys`);
-                setNodes(Object.entries(response.data)); // Convert to array of [node_id, public_key]
+                const response = await axios.get(`${centralServerUrl}/public_keys`);
+                setNodes(Object.entries(response.data)); // Convert to array of [node_id, node_data]
             } catch (error) {
                 console.error('Error fetching nodes:', error);
             }
@@ -30,9 +30,9 @@ const BlockProposal = () => {
             return;
         }
 
-        // Construct the URL for the selected node
-        const nodePort = 5000 + parseInt(selectedNode); // Assuming node_id corresponds to the port offset
-        const nodeUrl = `http://127.0.0.1:${nodePort}/propose_block`;
+        // Get the public URL for the selected node
+        const selectedNodeData = nodes.find(([nodeId]) => nodeId === selectedNode);
+        const nodeUrl = selectedNodeData[1].public_url + '/propose_block';
 
         try {
             const response = await axios.post(nodeUrl, {

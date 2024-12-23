@@ -16,6 +16,7 @@ const Logs = () => {
             const response = await axios.get(`http://127.0.0.1:${centralServerPort}/public_keys`);
             setNodes(Object.entries(response.data)); // Convert to array of [node_id, public_key]
             console.log(response.data);
+            console.log(nodes)
         } catch (error) {
             console.log('Error fetching nodes:', error);
         }
@@ -166,7 +167,7 @@ const Logs = () => {
                     margin: '20px 0', // Add some margin
                 }}
             >
-                {nodes.map(([nodeId, publicKey]) => (
+                {Object.entries(nodes).map(([nodeId, { public_key }]) => (
                     <div
                         key={nodeId}
                         style={{
@@ -181,7 +182,7 @@ const Logs = () => {
                     >
                         <h3>Node ID: {nodeId}</h3>
                         <p>
-                            <strong>Public Key:</strong> {publicKey.slice(0, 10)}...
+                            <strong>Public Key:</strong> {public_key.slice(0, 10)}...
                         </p>
                         <h4>Logs:</h4>
                         <br></br>

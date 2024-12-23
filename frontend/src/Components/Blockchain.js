@@ -4,12 +4,12 @@ import './Blockchain.css'; // Import the CSS file for styling
 
 const Blockchain = () => {
     const [blocks, setBlocks] = useState([]);
-    const centralServerPort = 5000; // Port of the central server
+    const centralServerUrl = 'http://127.0.0.1:5000'; // URL of the central server
 
     // Function to fetch blockchain data
     const fetchBlockchain = async () => {
         try {
-            const response = await axios.get(`http://127.0.0.1:${centralServerPort}/blockchain`);
+            const response = await axios.get(`${centralServerUrl}/blockchain`);
             setBlocks(response.data);
         } catch (error) {
             console.error('Error fetching blockchain:', error);
@@ -55,4 +55,4 @@ const Blockchain = () => {
     );
 };
 
-export default Blockchain; 
+export default Blockchain;

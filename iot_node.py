@@ -234,6 +234,6 @@ class IoTNode:
 
 if __name__ == '__main__':
         node_id = int(sys.argv[1])
-        central_server_url = "http://127.0.0.1:5000"
+        central_server_url = "https://4795-2409-40f2-2010-4ce8-94a6-4cea-cd7f-cc3c.ngrok-free.app"
         node = IoTNode(node_id=node_id, central_server_url=central_server_url)
         node.run()
