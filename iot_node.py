@@ -119,7 +119,7 @@ class IoTNode:
 
     def run(self):
         # Start the Flask app in a separate thread
-        threading.Thread(target=lambda: self.app.run(port=5000 + self.node_id, debug=False, use_reloader=False)).start()
+        threading.Thread(target=lambda: self.app.run(port=5000, debug=False, use_reloader=False)).start()
         time.sleep(1)  # Wait for the server to start
         self.register_node()
         self.get_public_keys()
