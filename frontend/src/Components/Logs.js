@@ -3,10 +3,10 @@ import axios from 'axios';
 import io from 'socket.io-client';
 
 const Logs = () => {
-    const [nodes, setNodes] = useState([]);
+    const [nodes, setNodes] = useState({});
     const [logs, setLogs] = useState({});
-    const [loading, setLoading] = useState(false); // To track loading state
-    const [socketError, setSocketError] = useState(null); // To handle socket errors
+    const [loadingCentral, setLoadingCentral] = useState(false); // To track loading state for central logs
+    const [loadingNodes, setLoadingNodes] = useState(false); // To track loading state for node logs
 
     const centralServerPort = 5000; // Port of the central server
 
@@ -14,9 +14,7 @@ const Logs = () => {
     const fetchNodes = async () => {
         try {
             const response = await axios.get(`http://127.0.0.1:${centralServerPort}/public_keys`);
-            setNodes(Object.entries(response.data)); // Convert to array of [node_id, public_key]
-            console.log(response.data);
-            console.log(nodes)
+            setNodes(response.data); // Convert to array of [node_id, public_key]
         } catch (error) {
             console.log('Error fetching nodes:', error);
         }
@@ -30,7 +28,6 @@ const Logs = () => {
                 ...prevLogs,
                 [nodeId]: response.data,
             }));
-            console.log(response.data);
         } catch (error) {
             console.error(`Error fetching logs for node ${nodeId}:`, error);
         }
@@ -38,7 +35,8 @@ const Logs = () => {
 
     // Function to fetch both nodes and their logs
     const fetchData = async () => {
-        setLoading(true);
+        setLoadingCentral(true);
+        setLoadingNodes(true);
 
         try {
             const serverLogsResponse = await axios.get(`http://127.0.0.1:${centralServerPort}/logs`);
@@ -46,9 +44,10 @@ const Logs = () => {
                 ...prevLogs,
                 central: serverLogsResponse.data.central_logs, // Assign the central logs correctly
             }));
-            console.log(serverLogsResponse.data);
         } catch (error) {
             console.error('Error fetching central server logs:', error);
+        } finally {
+            setLoadingCentral(false);
         }
 
         try {
@@ -57,9 +56,9 @@ const Logs = () => {
             await Promise.all(nodes.map(([nodeId]) => fetchLogs(nodeId))); // Fetch logs for each node
         } catch (fetchError) {
             console.error('Error fetching nodes or their logs:', fetchError);
+        } finally {
+            setLoadingNodes(false);
         }
-
-        setLoading(false);
     };
 
     // Initialize the Socket.IO client
@@ -72,11 +71,11 @@ const Logs = () => {
 
         // Handle socket connection errors
         socket.on('connect_error', () => {
-            setSocketError('Error connecting to server. Retrying...');
+            console.error('Error connecting to server. Retrying...');
         });
 
         socket.on('connect', () => {
-            setSocketError(null); // Clear any connection errors once connected
+            console.error(null); // Clear any connection errors once connected
         });
 
         // Handle initial logs from the server
@@ -124,92 +123,61 @@ const Logs = () => {
     };
 
     useEffect(()=>{
-        fetchNodes()
+        setNodes([])
+        setLogs({})
+        fetchData()
     },[])
 
     return (
         <>
-            <div
-                style={{
-                    marginTop: '20px',
-                    width: '100%',
-                    paddingTop: '10px',
-                }}
-            >
+            <div style={{ marginTop: '20px', width: '100%', paddingTop: '10px' }}>
                 <h2>Central Server Logs:</h2>
-                    {logs.central && logs.central.length > 0 ? (
-                <div style={{ maxHeight: '400px', overflowY: 'auto', "border": "2px solid #ccc", padding: "20px" }}>
+                {loadingCentral ? (
+                    <p>Loading central server logs...</p>
+                ) : logs.central && logs.central.length > 0 ? (
+                    <div style={{ maxHeight: '400px', overflowY: 'auto', border: '2px solid #ccc', padding: '20px' }}>
                         {logs.central.map((log, index) => (
-                            <div
-                                key={index}
-                                style={{
-                                    marginBottom: '10px',
-                                    padding: '5px',
-                                    backgroundColor: '#f1f1f1',
-                                    borderRadius: '4px',
-                                }}
-                            >
+                            <div key={index} style={{ marginBottom: '10px', padding: '5px', backgroundColor: '#f1f1f1', borderRadius: '4px' }}>
                                 <p>{log}</p>
                                 <small>Server Log</small>
                             </div>
                         ))}
-                </div>
-                    ) : (
-                        <p style={{height: "200px", display: "flex", "justifyContent" : "center", "alignItems": "center", "backgroundColor": "#ededed"}}>No logs available for the central server.</p>
-                    )}
+                    </div>
+                ) : (
+                    <p style={{ height: '200px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ededed' }}>
+                        No logs available for the central server.
+                    </p>
+                )}
             </div>
 
-            <div
-                style={{
-                    display: 'flex',
-                    flexWrap: 'wrap', // Allow wrapping to the next line
-                    justifyContent: 'space-between', // Space between cards
-                    margin: '20px 0', // Add some margin
-                }}
-            >
-                {Object.entries(nodes).map(([nodeId, { public_key }]) => (
-                    <div
-                        key={nodeId}
-                        style={{
-                            margin: '10px',
-                            width: 'calc(50% - 20px)', // Two cards per row with some margin
-                            border: '1px solid #ccc',
-                            padding: '20px',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)', // Optional: Add shadow for better visibility
-                            backgroundColor: '#fff', // Optional: Set background color
-                        }}
-                    >
-                        <h3>Node ID: {nodeId}</h3>
-                        <p>
-                            <strong>Public Key:</strong> {public_key.slice(0, 10)}...
-                        </p>
-                        <h4>Logs:</h4>
-                        <br></br>
-                        <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                            {logs[nodeId] && logs[nodeId].length > 0 ? (
-                                logs[nodeId].map((log, index) => (
-                                    <div
-                                        key={index}
-                                        style={{
-                                            marginBottom: '10px',
-                                            padding: '5px',
-                                            backgroundColor: '#f1f1f1',
-                                            borderRadius: '4px',
-                                        }}
-                                    >
-                                        <p>{log.log}</p>
-                                        <small>
-                                            {log.log_type === 'node' ? 'Node Log' : 'Server Log'}
-                                        </small>
-                                    </div>
-                                ))
-                            ) : (
-                                <p>No logs available for this node.</p>
-                            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', margin: '20px 0' }}>
+                {loadingNodes ? (
+                    <p>Loading node logs...</p>
+                ) : (
+                    Object.entries(nodes).map(([nodeId, { public_key, public_url }]) => (
+                        <div key={nodeId} style={{ margin: '10px', width: 'calc(50% - 20px)', border: '1px solid #ccc', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}>
+                            <h3>Node ID: {nodeId}</h3>
+                            <p>
+                                <strong>Public Key:</strong> {public_key.slice(0,10)}... <br></br>
+                                <strong>Public URL:</strong> {public_url}
+                            </p>
+                            <h4>Logs:</h4>
+                            <br />
+                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                {logs[nodeId] && logs[nodeId].length > 0 ? (
+                                    logs[nodeId].map((log, index) => (
+                                        <div key={index} style={{ marginBottom: '10px', padding: '5px', backgroundColor: '#f1f1f1', borderRadius: '4px' }}>
+                                            <p>{log.log}</p>
+                                            <small>{log.log_type === 'node' ? 'Node Log' : 'Server Log'}</small>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p>No logs available for this node.</p>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </>
     );

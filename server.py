@@ -120,6 +120,7 @@ def propose_block():
     proposal = {"block_data": block_data, "node_id": node_id}
     logger.info(f"Received block proposal '{block_data}' from Node {node_id}.", 
                 extra={'log_type': 'central', 'node_id': node_id})
+    logger.info(request.json)
     return jsonify({"status": "received"}), 200
 
 @app.route('/register_node', methods=['POST'])
@@ -133,6 +134,7 @@ def register_node():
     }
     logger.info(f"Node {node_id}: Registered with server.", 
                 extra={'log_type': 'central', 'node_id': node_id})
+    logger.info(request.json)
     return jsonify({'node_id': node_id, 'public_key': public_key_hex, 'public_url': public_url}), 201
 
 @app.route('/public_keys', methods=['GET'])
@@ -154,6 +156,7 @@ def commit_message():
     consensus_messages[node_id] = consensus_message
     logger.info(f"Received consensus message from Node {node_id}.", 
                 extra={'log_type': 'central', 'node_id': node_id})
+    logger.info(request.json)
 
     # Check if consensus is reached
     if len(consensus_messages) == len(registered_nodes):
